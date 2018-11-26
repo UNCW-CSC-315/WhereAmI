@@ -2,6 +2,7 @@ package edu.uncw.whereami;
 
 import android.Manifest;
 import android.content.pm.PackageManager;
+import android.location.Location;
 import android.os.Bundle;
 import android.support.v4.app.ActivityCompat;
 import android.support.v4.content.ContextCompat;
@@ -12,10 +13,15 @@ import android.support.v7.widget.RecyclerView;
 import android.view.View;
 import android.widget.Toast;
 
+import com.google.android.gms.location.FusedLocationProviderClient;
+import com.google.android.gms.location.LocationServices;
+import com.google.android.gms.tasks.OnSuccessListener;
+
 import io.objectbox.Box;
 
 public class MainActivity extends AppCompatActivity {
 
+    private FusedLocationProviderClient mFusedLocationClient;
     private static final int MY_PERMISSIONS_REQUEST_ACCESS_FINE_LOCATION = 65535;
 
     RecyclerView mRecyclerView;
@@ -24,6 +30,8 @@ public class MainActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+
+        mFusedLocationClient = LocationServices.getFusedLocationProviderClient(this);
 
         Box<LocationRecording> locationBox = ((App) getApplication()).getBoxStore().boxFor(LocationRecording.class);
 
@@ -41,6 +49,16 @@ public class MainActivity extends AppCompatActivity {
 
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION)
                 != PackageManager.PERMISSION_GRANTED) {
+            mFusedLocationClient.getLastLocation()
+                    .addOnSuccessListener(this, new OnSuccessListener<Location>() {
+                        @Override
+                        public void onSuccess(Location location) {
+                            // Got last known location. In some rare situations this can be null.
+                            if (location != null) {
+                                // Logic to handle location object
+                            }
+                        }
+                    });
             Toast.makeText(this, "I need permission to access location in order to record locations.", Toast.LENGTH_SHORT).show();
 
             ActivityCompat.requestPermissions(this,
@@ -49,7 +67,16 @@ public class MainActivity extends AppCompatActivity {
 
         }
         else {
-            Toast.makeText(this, "I should be recording the location now!", Toast.LENGTH_SHORT).show();
+            mFusedLocationClient.getLastLocation()
+                    .addOnSuccessListener(this, new OnSuccessListener<Location>() {
+                        @Override
+                        public void onSuccess(Location location) {
+                            // Got last known location. In some rare situations this can be null.
+                            if (location != null) {
+                                // Logic to handle location object
+                            }
+                        }
+                    });
         }
     }
 
