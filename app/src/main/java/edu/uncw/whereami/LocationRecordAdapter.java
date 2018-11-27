@@ -77,8 +77,11 @@ public class LocationRecordAdapter extends RecyclerView.Adapter<LocationRecordAd
         // - get element from your dataset at this position
         // - replace the contents of the view with that element
 
-
-        List<LocationRecording> locations = locationBox.query().order(LocationRecording_.timestamp, QueryBuilder.DESCENDING).build().find();
+        List<LocationRecording> locations = locationBox.query()
+                .order(LocationRecording_.timestamp, QueryBuilder.DESCENDING)
+                .order(LocationRecording_.id, QueryBuilder.DESCENDING)
+                .build()
+                .find();
         if(position < locations.size() ) {
             LocationRecording loc = locations.get(position);
             holder.id.setText(Long.toString(loc.getId()));
