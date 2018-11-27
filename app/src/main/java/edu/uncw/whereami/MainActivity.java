@@ -27,9 +27,9 @@ public class MainActivity extends AppCompatActivity {
     private FusedLocationProviderClient mFusedLocationClient;
     private static final int MY_PERMISSIONS_REQUEST_ACCESS_FINE_LOCATION = 65535;
 
-    private Box<LocationRecording> locationBox;
-
     LocationRecordAdapter adapter;
+    Box<LocationRecording> locationBox;
+
     RecyclerView mRecyclerView;
     TextView latText;
     TextView lonText;
@@ -43,8 +43,6 @@ public class MainActivity extends AppCompatActivity {
         locationBox = ((App) getApplication()).getBoxStore().boxFor(LocationRecording.class);
 
         mFusedLocationClient = LocationServices.getFusedLocationProviderClient(this);
-
-        Box<LocationRecording> locationBox = ((App) getApplication()).getBoxStore().boxFor(LocationRecording.class);
 
         latText = findViewById(R.id.latitude);
         lonText = findViewById(R.id.longitude);
@@ -116,5 +114,10 @@ public class MainActivity extends AppCompatActivity {
                 return;
             }
         }
+    }
+
+    public void clearHistory(View view) {
+        locationBox.removeAll();
+        adapter.notifyDataSetChanged();
     }
 }
