@@ -78,14 +78,14 @@ public class LocationRecordAdapter extends RecyclerView.Adapter<LocationRecordAd
         // - replace the contents of the view with that element
 
 
-        List<LocationRecording> locations = locationBox.query().order(LocationRecording_.timestamp, QueryBuilder.DESCENDING).build().find();
-        if(position < locations.size() ) {
+        List<LocationRecording> locations = locationBox.query().order(LocationRecording_.timestamp, QueryBuilder.DESCENDING).order(LocationRecording_.id, QueryBuilder.DESCENDING).build().find();
+        if (position < locations.size()) {
             LocationRecording loc = locations.get(position);
             holder.id.setText(Long.toString(loc.getId()));
             holder.timestamp.setText(formatter.format(loc.getTimestamp()));
             holder.latitude.setText(String.format("%.7f", loc.getLatitude()));
             holder.longitude.setText(String.format("%.7f", loc.getLongitude()));
-            holder.accuracy.setText(String.format("%.2f",loc.getAcc()));
+            holder.accuracy.setText(String.format("%.2f", loc.getAcc()));
         }
     }
 
