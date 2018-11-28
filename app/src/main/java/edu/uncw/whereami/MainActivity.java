@@ -70,47 +70,39 @@ public class MainActivity extends AppCompatActivity {
         mLocationCallback = new LocationCallback() {
             @Override
             public void onLocationResult(LocationResult locationResult) {
-                if (locationResult == null) {
-                    return;
-                }
-                for (Location location : locationResult.getLocations()) {
-                    latText.setText(String.format("%.7f", location.getLatitude()));
-                    lonText.setText(String.format("%.7f", location.getLongitude()));
-                    accuracyText.setText(String.format("%.2f",location.getAccuracy()));
+                if (locationResult != null) {
+                    for (Location location : locationResult.getLocations()) {
+                        latText.setText(String.format("%.7f", location.getLatitude()));
+                        lonText.setText(String.format("%.7f", location.getLongitude()));
+                        accuracyText.setText(String.format("%.2f", location.getAccuracy()));
 
-                    locationBox.put(new LocationRecording(new Date(location.getTime()), location.getLatitude(), location.getLongitude(), location.getAccuracy()));
-                    adapter.notifyDataSetChanged();
+                        locationBox.put(new LocationRecording(new Date(location.getTime()), location.getLatitude(), location.getLongitude(), location.getAccuracy()));
+                        adapter.notifyDataSetChanged();
+                    }
                 }
-            };
+            }
+
         };
 
-        updateValuesFromBundle(savedInstanceState);
-    }
+        if (savedInstanceState != null) {
+            latText.setText(savedInstanceState.getCharSequence(LATITUDE_KEY));
+            lonText.setText(savedInstanceState.getCharSequence(LONGITUDE_KEY));
+            accuracyText.setText(savedInstanceState.getCharSequence(ACCURACY_KEY));
+        }
 
+    }
 
 
     public void recordClick(View view) {
 
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION)
                 != PackageManager.PERMISSION_GRANTED) {
-            mFusedLocationClient.getLastLocation()
-                    .addOnSuccessListener(this, new OnSuccessListener<Location>() {
-                        @Override
-                        public void onSuccess(Location location) {
-                            // Got last known location. In some rare situations this can be null.
-                            if (location != null) {
-                                // Logic to handle location object
-                            }
-                        }
-                    });
             Toast.makeText(this, "I need permission to access location in order to record locations.", Toast.LENGTH_SHORT).show();
 
             ActivityCompat.requestPermissions(this,
                     new String[]{Manifest.permission.ACCESS_FINE_LOCATION},
                     MY_PERMISSIONS_REQUEST_ACCESS_FINE_LOCATION);
-
-        }
-        else {
+        } else {
             mFusedLocationClient.getLastLocation()
                     .addOnSuccessListener(this, new OnSuccessListener<Location>() {
                         @Override
@@ -119,11 +111,10 @@ public class MainActivity extends AppCompatActivity {
                             if (location != null) {
                                 latText.setText(String.format("%.7f", location.getLatitude()));
                                 lonText.setText(String.format("%.7f", location.getLongitude()));
-                                accuracyText.setText(String.format("%.2f",location.getAccuracy()));
+                                accuracyText.setText(String.format("%.2f", location.getAccuracy()));
 
                                 locationBox.put(new LocationRecording(new Date(location.getTime()), location.getLatitude(), location.getLongitude(), location.getAccuracy()));
                                 adapter.notifyDataSetChanged();
-                                // Logic to handle location object
                             }
                         }
                     });
@@ -155,17 +146,20 @@ public class MainActivity extends AppCompatActivity {
     private static int REQUEST_CHECK_SETTINGS = 123;
     private LocationRequest mLocationRequest;
     private LocationCallback mLocationCallback;
-    private static String REQUESTING_LOCATION_UPDATES_KEY = "REQUESTING_LOCATION_UPDATES_KEY";
     private static String LATITUDE_KEY = "latitude";
     private static String LONGITUDE_KEY = "longitude";
     private static String ACCURACY_KEY = "accuracy";
-    private boolean mRequestingLocationUpdates;
 
+    /**
+     * This method is called to kick off the chain of events that requests continuous location updates.
+     */
     protected void createLocationRequest() {
-        mLocationRequest = new LocationRequest();
-        mLocationRequest.setInterval(10000);
-        mLocationRequest.setFastestInterval(5000);
-        mLocationRequest.setPriority(LocationRequest.PRIORITY_HIGH_ACCURACY);
+        if (mLocationRequest == null) {
+            mLocationRequest = new LocationRequest();
+            mLocationRequest.setInterval(10000);
+            mLocationRequest.setFastestInterval(5000);
+            mLocationRequest.setPriority(LocationRequest.PRIORITY_HIGH_ACCURACY);
+        }
 
         LocationSettingsRequest.Builder builder = new LocationSettingsRequest.Builder()
                 .addLocationRequest(mLocationRequest);
@@ -207,9 +201,11 @@ public class MainActivity extends AppCompatActivity {
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
 
-        if(requestCode == REQUEST_CHECK_SETTINGS) {
+        if (requestCode == REQUEST_CHECK_SETTINGS) {
             // Regardless of whether the user fixed the issue or not, try again.
             // This could be really annoying for the user...
+            // In reality, you should check the resultCode for success. If not successful, you
+            // should degrade the functionality.
             createLocationRequest();
         }
     }
@@ -217,9 +213,8 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onResume() {
         super.onResume();
-        if (mRequestingLocationUpdates) {
-            startLocationUpdates();
-        }
+        createLocationRequest();
+
     }
 
     private void startLocationUpdates() {
@@ -236,27 +231,10 @@ public class MainActivity extends AppCompatActivity {
 
     @Override
     protected void onSaveInstanceState(Bundle outState) {
-        outState.putBoolean(REQUESTING_LOCATION_UPDATES_KEY,
-                mRequestingLocationUpdates);
         outState.putCharSequence(LATITUDE_KEY, latText.getText());
         outState.putCharSequence(LONGITUDE_KEY, lonText.getText());
         outState.putCharSequence(ACCURACY_KEY, accuracyText.getText());
         super.onSaveInstanceState(outState);
     }
 
-    private void updateValuesFromBundle(Bundle savedInstanceState) {
-        if (savedInstanceState == null) {
-            return;
-        }
-
-        // Update the value of mRequestingLocationUpdates from the Bundle.
-        if (savedInstanceState.keySet().contains(REQUESTING_LOCATION_UPDATES_KEY)) {
-            mRequestingLocationUpdates = savedInstanceState.getBoolean(
-                    REQUESTING_LOCATION_UPDATES_KEY);
-        }
-
-        latText.setText(savedInstanceState.getCharSequence(LATITUDE_KEY));
-        lonText.setText(savedInstanceState.getCharSequence(LONGITUDE_KEY));
-        accuracyText.setText(savedInstanceState.getCharSequence(ACCURACY_KEY));
-    }
 }
