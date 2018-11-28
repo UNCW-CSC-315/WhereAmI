@@ -82,6 +82,7 @@ public class MainActivity extends AppCompatActivity {
                 }
             }
 
+
         };
 
         if (savedInstanceState != null) {
@@ -214,13 +215,21 @@ public class MainActivity extends AppCompatActivity {
     protected void onResume() {
         super.onResume();
         createLocationRequest();
-
     }
 
     private void startLocationUpdates() {
-        mFusedLocationClient.requestLocationUpdates(mLocationRequest,
-                mLocationCallback,
-                null /* Looper */);
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION)
+                != PackageManager.PERMISSION_GRANTED) {
+            Toast.makeText(this, "I need permission to access location in order to record locations.", Toast.LENGTH_SHORT).show();
+
+            ActivityCompat.requestPermissions(this,
+                    new String[]{Manifest.permission.ACCESS_FINE_LOCATION},
+                    MY_PERMISSIONS_REQUEST_ACCESS_FINE_LOCATION);
+        } else {
+            mFusedLocationClient.requestLocationUpdates(mLocationRequest,
+                    mLocationCallback,
+                    null /* Looper */);
+        }
     }
 
     @Override
