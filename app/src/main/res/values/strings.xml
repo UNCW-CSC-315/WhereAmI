@@ -14,5 +14,4 @@
     <string name="acc_header">acc</string>
     <string name="history_label">History</string>
     <string name="record_button_text">Record Location</string>
-    <string name="clear_button_text">Clear History</string>
 </resources>

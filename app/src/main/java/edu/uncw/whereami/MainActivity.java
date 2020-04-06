@@ -6,17 +6,20 @@ import android.content.IntentSender;
 import android.content.pm.PackageManager;
 import android.location.Location;
 import android.os.Bundle;
-import android.support.annotation.NonNull;
-import android.support.v4.app.ActivityCompat;
-import android.support.v4.content.ContextCompat;
-import android.support.v7.app.AppCompatActivity;
-import android.support.v7.widget.DividerItemDecoration;
-import android.support.v7.widget.LinearLayoutManager;
-import android.support.v7.widget.RecyclerView;
+import android.util.Log;
 import android.view.View;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import androidx.annotation.NonNull;
+import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.app.ActivityCompat;
+import androidx.core.content.ContextCompat;
+import androidx.recyclerview.widget.DividerItemDecoration;
+import androidx.recyclerview.widget.LinearLayoutManager;
+import androidx.recyclerview.widget.RecyclerView;
+
+import com.firebase.ui.firestore.FirestoreRecyclerOptions;
 import com.google.android.gms.common.api.ResolvableApiException;
 import com.google.android.gms.location.FusedLocationProviderClient;
 import com.google.android.gms.location.LocationCallback;
@@ -29,20 +32,24 @@ import com.google.android.gms.location.SettingsClient;
 import com.google.android.gms.tasks.OnFailureListener;
 import com.google.android.gms.tasks.OnSuccessListener;
 import com.google.android.gms.tasks.Task;
+import com.google.firebase.firestore.DocumentReference;
+import com.google.firebase.firestore.FirebaseFirestore;
+import com.google.firebase.firestore.GeoPoint;
+import com.google.firebase.firestore.Query;
 
 import java.util.Date;
-
-import io.objectbox.Box;
+import java.util.Locale;
 
 public class MainActivity extends AppCompatActivity {
 
     private FusedLocationProviderClient mFusedLocationClient;
+    private FirebaseFirestore db = FirebaseFirestore.getInstance();
+    private LocationRecordAdapter mAdapter;
+
     private static final int MY_PERMISSIONS_REQUEST_ACCESS_FINE_LOCATION = 65535;
+    private static final String LOCATIONRECORD_COLLECTION = "location-recordings";
+    private static final String TAG = "MainActivity";
 
-    LocationRecordAdapter adapter;
-    Box<LocationRecording> locationBox;
-
-    RecyclerView mRecyclerView;
     TextView latText;
     TextView lonText;
     TextView accuracyText;
@@ -52,32 +59,63 @@ public class MainActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        locationBox = ((App) getApplication()).getBoxStore().boxFor(LocationRecording.class);
-
         mFusedLocationClient = LocationServices.getFusedLocationProviderClient(this);
 
         latText = findViewById(R.id.latitude);
         lonText = findViewById(R.id.longitude);
         accuracyText = findViewById(R.id.acc);
 
-        mRecyclerView = findViewById(R.id.recycler_view);
-        mRecyclerView.setLayoutManager(new LinearLayoutManager(this));
-        adapter = new LocationRecordAdapter(locationBox);
-        mRecyclerView.setAdapter(adapter);
-        mRecyclerView.addItemDecoration(new DividerItemDecoration(this,
+        // Do the many steps required to setup the RecyclerView to listen for new and
+        // changed LocationRecords in the Firestore
+        final RecyclerView recyclerView = findViewById(R.id.recycler_view);
+        recyclerView.setLayoutManager(new LinearLayoutManager(this));
+        Query query = db.collection(LOCATIONRECORD_COLLECTION)
+                .orderBy("timestamp", Query.Direction.DESCENDING);
+        FirestoreRecyclerOptions<LocationRecord> options = new FirestoreRecyclerOptions.Builder<LocationRecord>()
+                .setQuery(query, LocationRecord.class)
+                .setLifecycleOwner(this)
+                .build();
+        mAdapter = new LocationRecordAdapter(options
+                , new LocationRecordAdapter.OnDataChangedListener() {
+            @Override
+            public void onDataChanged() {
+                recyclerView.scrollToPosition(0);
+            }
+        });
+        recyclerView.setAdapter(mAdapter);
+        recyclerView.addItemDecoration(new DividerItemDecoration(this,
                 DividerItemDecoration.VERTICAL));
+
 
         mLocationCallback = new LocationCallback() {
             @Override
             public void onLocationResult(LocationResult locationResult) {
                 if (locationResult != null) {
                     for (Location location : locationResult.getLocations()) {
-                        latText.setText(String.format("%.7f", location.getLatitude()));
-                        lonText.setText(String.format("%.7f", location.getLongitude()));
-                        accuracyText.setText(String.format("%.2f", location.getAccuracy()));
+                        latText.setText(String.format(Locale.US, "%.7f", location.getLatitude()));
+                        lonText.setText(String.format(Locale.US, "%.7f", location.getLongitude()));
+                        accuracyText.setText(String.format(Locale.US, "%.2f", location.getAccuracy()));
 
-                        locationBox.put(new LocationRecording(new Date(location.getTime()), location.getLatitude(), location.getLongitude(), location.getAccuracy()));
-                        adapter.notifyDataSetChanged();
+                        LocationRecord lr = new LocationRecord(
+                                new Date(location.getTime()),
+                                new GeoPoint(location.getLatitude(), location.getLongitude()),
+                                location.getAccuracy());
+
+                        db.collection(LOCATIONRECORD_COLLECTION)
+                                .add(lr)
+                                .addOnSuccessListener(new OnSuccessListener<DocumentReference>() {
+                                    @Override
+                                    public void onSuccess(DocumentReference documentReference) {
+                                        Log.d(TAG, "Location Record added with ID: " + documentReference.getId());
+                                    }
+                                })
+                                .addOnFailureListener(new OnFailureListener() {
+                                    @Override
+                                    public void onFailure(@NonNull Exception e) {
+                                        Log.w(TAG, "Error adding LocationRecord", e);
+                                    }
+                                });
+//                        mAdapter.notifyDataSetChanged();
                     }
                 }
             }
@@ -91,6 +129,34 @@ public class MainActivity extends AppCompatActivity {
 
     }
 
+    private void recordFirestoreEntryFromLocationResult(Location location) {
+        if (location != null) {
+            latText.setText(String.format(Locale.US, "%.7f", location.getLatitude()));
+            lonText.setText(String.format(Locale.US, "%.7f", location.getLongitude()));
+            accuracyText.setText(String.format(Locale.US, "%.2f", location.getAccuracy()));
+
+            LocationRecord lr = new LocationRecord(
+                    new Date(location.getTime()),
+                    new GeoPoint(location.getLatitude(), location.getLongitude()),
+                    location.getAccuracy());
+
+            db.collection(LOCATIONRECORD_COLLECTION)
+                    .add(lr)
+                    .addOnSuccessListener(new OnSuccessListener<DocumentReference>() {
+                        @Override
+                        public void onSuccess(DocumentReference documentReference) {
+                            Log.d(TAG, "Location Record added with ID: " + documentReference.getId());
+                        }
+                    })
+                    .addOnFailureListener(new OnFailureListener() {
+                        @Override
+                        public void onFailure(@NonNull Exception e) {
+                            Log.w(TAG, "Error adding LocationRecord", e);
+                        }
+                    });
+        }
+
+    }
 
     public void recordClick(View view) {
 
@@ -106,15 +172,7 @@ public class MainActivity extends AppCompatActivity {
                     .addOnSuccessListener(this, new OnSuccessListener<Location>() {
                         @Override
                         public void onSuccess(Location location) {
-                            // Got last known location. In some rare situations this can be null.
-                            if (location != null) {
-                                latText.setText(String.format("%.7f", location.getLatitude()));
-                                lonText.setText(String.format("%.7f", location.getLongitude()));
-                                accuracyText.setText(String.format("%.2f", location.getAccuracy()));
-
-                                locationBox.put(new LocationRecording(new Date(location.getTime()), location.getLatitude(), location.getLongitude(), location.getAccuracy()));
-                                adapter.notifyDataSetChanged();
-                            }
+                            recordFirestoreEntryFromLocationResult(location);
                         }
                     });
         }
@@ -122,7 +180,7 @@ public class MainActivity extends AppCompatActivity {
 
     @Override
     public void onRequestPermissionsResult(int requestCode,
-                                           String permissions[], int[] grantResults) {
+                                           String[] permissions, int[] grantResults) {
         switch (requestCode) {
             case MY_PERMISSIONS_REQUEST_ACCESS_FINE_LOCATION: {
                 // If request is cancelled, the result arrays are empty.
@@ -135,11 +193,6 @@ public class MainActivity extends AppCompatActivity {
                 return;
             }
         }
-    }
-
-    public void clearHistory(View view) {
-        locationBox.removeAll();
-        adapter.notifyDataSetChanged();
     }
 
     private static int REQUEST_CHECK_SETTINGS = 123;
@@ -175,6 +228,7 @@ public class MainActivity extends AppCompatActivity {
                 startLocationUpdates();
             }
         });
+
 
         task.addOnFailureListener(this, new OnFailureListener() {
             @Override

@@ -13,28 +13,32 @@
 
 package edu.uncw.whereami;
 
-import android.support.constraint.ConstraintLayout;
-import android.support.v7.widget.RecyclerView;
 import android.view.LayoutInflater;
 import android.view.ViewGroup;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 
+import androidx.recyclerview.widget.RecyclerView;
+
+import com.firebase.ui.firestore.FirestoreRecyclerAdapter;
+import com.firebase.ui.firestore.FirestoreRecyclerOptions;
+
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
-import java.util.List;
+import java.util.Locale;
 
-import io.objectbox.Box;
-import io.objectbox.query.QueryBuilder;
+public class LocationRecordAdapter extends FirestoreRecyclerAdapter<LocationRecord, LocationRecordAdapter.MyViewHolder> {
 
-public class LocationRecordAdapter extends RecyclerView.Adapter<LocationRecordAdapter.MyViewHolder> {
+    public interface OnDataChangedListener {
+        void onDataChanged();
+    }
 
-    private static final DateFormat formatter = new SimpleDateFormat("MM-dd-yy HH:mm:ss");
+    private static final DateFormat formatter = new SimpleDateFormat("MM-dd-yy HH:mm:ss", Locale.US);
+    private final OnDataChangedListener listener;
 
-    private Box<LocationRecording> locationBox;
-
-    LocationRecordAdapter(Box<LocationRecording> locationBox) {
-        this.locationBox = locationBox;
+    LocationRecordAdapter(FirestoreRecyclerOptions<LocationRecord> options, OnDataChangedListener listener) {
+        super(options);
+        this.listener = listener;
     }
 
 
@@ -42,7 +46,7 @@ public class LocationRecordAdapter extends RecyclerView.Adapter<LocationRecordAd
     // Complex data items may need more than one view per item, and
     // you provide access to all the views for a data item in a view holder
     class MyViewHolder extends RecyclerView.ViewHolder {
-        public LinearLayout layout;
+        LinearLayout layout;
         TextView id;
         TextView timestamp;
         TextView latitude;
@@ -73,28 +77,20 @@ public class LocationRecordAdapter extends RecyclerView.Adapter<LocationRecordAd
 
     // Replace the contents of a view (invoked by the layout manager)
     @Override
-    public void onBindViewHolder(MyViewHolder holder, final int position) {
+    public void onBindViewHolder(MyViewHolder holder, final int position, LocationRecord loc) {
         // - get element from your dataset at this position
         // - replace the contents of the view with that element
-
-        List<LocationRecording> locations = locationBox.query()
-                .order(LocationRecording_.timestamp, QueryBuilder.DESCENDING)
-                .order(LocationRecording_.id, QueryBuilder.DESCENDING)
-                .build()
-                .find();
-        if(position < locations.size() ) {
-            LocationRecording loc = locations.get(position);
-            holder.id.setText(Long.toString(loc.getId()));
-            holder.timestamp.setText(formatter.format(loc.getTimestamp()));
-            holder.latitude.setText(String.format("%.7f", loc.getLatitude()));
-            holder.longitude.setText(String.format("%.7f", loc.getLongitude()));
-            holder.accuracy.setText(String.format("%.2f",loc.getAcc()));
-        }
+        holder.timestamp.setText(formatter.format(loc.getTimestamp()));
+        holder.latitude.setText(String.format(Locale.US, "%.7f", loc.getLocation().getLatitude()));
+        holder.longitude.setText(String.format(Locale.US, "%.7f", loc.getLocation().getLongitude()));
+        holder.accuracy.setText(String.format(Locale.US, "%.2f", loc.getAcc()));
     }
 
-    // Return the size of your dataset (invoked by the layout manager)
     @Override
-    public int getItemCount() {
-        return (int) locationBox.count();
+    public void onDataChanged() {
+        // Called each time there is a new query snapshot. You may want to use this method
+        // to hide a loading spinner or check for the "no documents" state and update your UI.
+        listener.onDataChanged();
     }
+
 }
