@@ -161,19 +161,17 @@ public class ContinuousLocActivity extends AppCompatActivity {
     }
 
 
-
     @Override
     public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
         if (requestCode == MY_PERMISSIONS_REQUEST_ACCESS_FINE_LOCATION) {
-                // If request is cancelled, the result arrays are empty.
-                if (grantResults.length > 0  && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                    Toast.makeText(this, "I can record the location now!", Toast.LENGTH_SHORT).show();
-                } else {
-                    Toast.makeText(this, "This app won't work until you grant permission!", Toast.LENGTH_SHORT).show();
-                }
+            // If request is cancelled, the result arrays are empty.
+            if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                Toast.makeText(this, "I can record the location now!", Toast.LENGTH_SHORT).show();
+            } else {
+                Toast.makeText(this, "This app won't work until you grant permission!", Toast.LENGTH_SHORT).show();
             }
         }
-
+    }
 
 
     /**
@@ -195,11 +193,14 @@ public class ContinuousLocActivity extends AppCompatActivity {
                 // ...
                 if (ContextCompat.checkSelfPermission(ContinuousLocActivity.this, Manifest.permission.ACCESS_FINE_LOCATION)
                         != PackageManager.PERMISSION_GRANTED) {
-                    Toast.makeText(ContinuousLocActivity.this, "I need permission to access location in order to record locations.", Toast.LENGTH_SHORT).show();
-
-                    ActivityCompat.requestPermissions(ContinuousLocActivity.this,
-                            new String[]{Manifest.permission.ACCESS_FINE_LOCATION},
-                            MY_PERMISSIONS_REQUEST_ACCESS_FINE_LOCATION);
+                    if (ActivityCompat.shouldShowRequestPermissionRationale(ContinuousLocActivity.this,
+                            Manifest.permission.ACCESS_FINE_LOCATION)) {
+                        Toast.makeText(ContinuousLocActivity.this, "I need permission to access location in order to record locations.", Toast.LENGTH_SHORT).show();
+                    } else {
+                        ActivityCompat.requestPermissions(ContinuousLocActivity.this,
+                                new String[]{Manifest.permission.ACCESS_FINE_LOCATION},
+                                MY_PERMISSIONS_REQUEST_ACCESS_FINE_LOCATION);
+                    }
                 } else {
                     mFusedLocationClient.requestLocationUpdates(mLocationRequest,
                             mLocationCallback,
