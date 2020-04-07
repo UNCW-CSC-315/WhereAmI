@@ -115,7 +115,6 @@ public class MainActivity extends AppCompatActivity {
                                         Log.w(TAG, "Error adding LocationRecord", e);
                                     }
                                 });
-//                        mAdapter.notifyDataSetChanged();
                     }
                 }
             }
