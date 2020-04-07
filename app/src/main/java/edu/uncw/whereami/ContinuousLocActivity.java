@@ -41,23 +41,33 @@ import java.util.Locale;
 
 public class ContinuousLocActivity extends AppCompatActivity {
 
-    private FusedLocationProviderClient mFusedLocationClient;
-    private FirebaseFirestore db = FirebaseFirestore.getInstance();
-
-    private static final int MY_PERMISSIONS_REQUEST_ACCESS_FINE_LOCATION = 65535;
-    private static final String LOCATIONRECORD_COLLECTION = "location-recordings";
     private static final String TAG = "MainActivity";
-    private static String LATITUDE_KEY = "latitude";
-    private static String LONGITUDE_KEY = "longitude";
-    private static String ACCURACY_KEY = "accuracy";
+    // Dictionary keys so we can store the last seen lat, lon, and acc in onSaveInstanceState()
+    private static final String LATITUDE_KEY = "latitude";
+    private static final String LONGITUDE_KEY = "longitude";
+    private static final String ACCURACY_KEY = "accuracy";
+    // We will need this constant during the process of requesting permission.
+    // It can be any integer value. It is just something to support passing of data between
+    // this app and the Android built-in app that requests permissions
+    private static final int MY_PERMISSIONS_REQUEST_ACCESS_FINE_LOCATION = 65535;
+    // A class from Google Services that simplifies the logic of getting location information from
+    // the sensors on the phone.
+    private FusedLocationProviderClient mFusedLocationClient;
+
+    private FirebaseFirestore db = FirebaseFirestore.getInstance();
+    private static final String LOCATIONRECORD_COLLECTION = "location-recordings";
 
     TextView latText;
     TextView lonText;
     TextView accuracyText;
-
+    // This field will hold an object that gets triggered by the periodic location updates.
+    // The object will update the UI and record data to the Firestore.
     private LocationCallback mLocationCallback;
 
     private static int REQUEST_CHECK_SETTINGS = 123;
+
+    // This is a configuration object that tells the Google client how often and to what degree
+    // of accuracy you want to receive location updates.
     private LocationRequest mLocationRequest = new LocationRequest()
             .setInterval(10000)
             .setFastestInterval(5000)
@@ -96,7 +106,9 @@ public class ContinuousLocActivity extends AppCompatActivity {
         recyclerView.addItemDecoration(new DividerItemDecoration(this,
                 DividerItemDecoration.VERTICAL));
 
-
+        // Setup the LocationCallback object, which will be triggered when the FusedLocationProvider
+        // periodically updates the location. In our case, we want to update the UI and write
+        // a LocationRecord to the Firestore. This is similar to the OnDemandActivity logic.
         mLocationCallback = new LocationCallback() {
             @Override
             public void onLocationResult(LocationResult locationResult) {
@@ -161,6 +173,15 @@ public class ContinuousLocActivity extends AppCompatActivity {
     }
 
 
+    /**
+     * This method is called automatically by the Android OS when ActivityCompat.requestPermissions() finishes the dialog.
+     * In here, we check if the user granted the permission or not, then do something based on that result.
+     *
+     * @param requestCode  a unique integer id affiliated with the permission request. This is used to help distinguish if an activity
+     *                     has multiple permission requests
+     * @param permissions  an array of the Android permissions that were requested
+     * @param grantResults Integer value indicating if the permission was granted or not
+     */
     @Override
     public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
         if (requestCode == MY_PERMISSIONS_REQUEST_ACCESS_FINE_LOCATION) {
@@ -168,7 +189,7 @@ public class ContinuousLocActivity extends AppCompatActivity {
             if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
                 Toast.makeText(this, "I can record the location now!", Toast.LENGTH_SHORT).show();
             } else {
-                Toast.makeText(this, "This app won't work until you grant permission!", Toast.LENGTH_SHORT).show();
+                Toast.makeText(this, "This app won't work until you grant permission to access the location!", Toast.LENGTH_SHORT).show();
             }
         }
     }
@@ -227,6 +248,18 @@ public class ContinuousLocActivity extends AppCompatActivity {
         });
     }
 
+    /**
+     * This method is similar in nature to onRequestPermissionsResult(), except that this method
+     * deal with the FusedLocationProvider not being able to handle the location polling
+     * parameters you gave it.
+     *
+     * An example would be that the phone is in Airplane made. Android will prompt the user to
+     * disable it, and they may or may not do so.
+     *
+     * @param requestCode
+     * @param resultCode
+     * @param data
+     */
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
