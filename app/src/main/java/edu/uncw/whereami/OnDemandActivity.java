@@ -152,23 +152,19 @@ public class OnDemandActivity extends AppCompatActivity {
                             lonText.setText(String.format(Locale.US, "%.7f", location.getLongitude()));
                             accuracyText.setText(String.format(Locale.US, "%.2f", location.getAccuracy()));
 
-                            addLocationRecord(location);
+                            // Now write the Location data to the Firestore using our LocationRecord object
+                            // The RecyclerView should update automatically
+                            LocationRecord lr = new LocationRecord(
+                                    new Date(location.getTime()),
+                                    new GeoPoint(location.getLatitude(), location.getLongitude()),
+                                    location.getAccuracy());
+
+                            db.collection(LOCATIONRECORD_COLLECTION)
+                                    .add(lr)
+                                    .addOnSuccessListener(documentReference -> Log.d(TAG, "Location Record added with ID: " + documentReference.getId()))
+                                    .addOnFailureListener(e -> Log.w(TAG, "Error adding LocationRecord", e));
                         }
                     });
         }
-    }
-
-    private void addLocationRecord(Location location) {
-        // Now write the Location data to the Firestore using our LocationRecord object
-        // The RecyclerView should update automatically
-        LocationRecord lr = new LocationRecord(
-                new Date(location.getTime()),
-                new GeoPoint(location.getLatitude(), location.getLongitude()),
-                location.getAccuracy());
-
-        db.collection(LOCATIONRECORD_COLLECTION)
-                .add(lr)
-                .addOnSuccessListener(documentReference -> Log.d(TAG, "Location Record added with ID: " + documentReference.getId()))
-                .addOnFailureListener(e -> Log.w(TAG, "Error adding LocationRecord", e));
     }
 }
