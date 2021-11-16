@@ -10,6 +10,8 @@ import android.util.Log;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
@@ -41,34 +43,54 @@ import java.util.Locale;
 
 public class ContinuousLocActivity extends AppCompatActivity {
 
-    private static final String TAG = "MainActivity";
+    private static final String TAG = "ContinuousLocActivity";
     // Dictionary keys so we can store the last seen lat, lon, and acc in onSaveInstanceState()
     private static final String LATITUDE_KEY = "latitude";
     private static final String LONGITUDE_KEY = "longitude";
     private static final String ACCURACY_KEY = "accuracy";
-    // We will need this constant during the process of requesting permission.
-    // It can be any integer value. It is just something to support passing of data between
-    // this app and the Android built-in app that requests permissions
-    private static final int MY_PERMISSIONS_REQUEST_ACCESS_FINE_LOCATION = 65535;
+
     // A class from Google Services that simplifies the logic of getting location information from
     // the sensors on the phone.
     private FusedLocationProviderClient mFusedLocationClient;
 
-    private FirebaseFirestore db = FirebaseFirestore.getInstance();
+    private final FirebaseFirestore db = FirebaseFirestore.getInstance();
     private static final String LOCATIONRECORD_COLLECTION = "location-recordings";
 
     TextView latText;
     TextView lonText;
     TextView accuracyText;
+
+    ActivityResultLauncher<String[]> locationPermissionRequest =
+            registerForActivityResult(new ActivityResultContracts
+                            .RequestMultiplePermissions(), result -> {
+                        Boolean fineLocationGranted = result.getOrDefault(
+                                Manifest.permission.ACCESS_FINE_LOCATION, false);
+                        Boolean coarseLocationGranted = result.getOrDefault(
+                                Manifest.permission.ACCESS_COARSE_LOCATION, false);
+
+                        if (fineLocationGranted != null && fineLocationGranted) {
+                            // Precise location access granted.
+                            Toast.makeText(this, "I can see precise location!", Toast.LENGTH_SHORT).show();
+                        } else if (coarseLocationGranted != null && coarseLocationGranted) {
+                            // Only approximate location access granted.
+                            Toast.makeText(this, "I can see approximate location!", Toast.LENGTH_SHORT).show();
+                        } else {
+                            // No location access granted.
+                            Toast.makeText(this, "I need permission to access location in order to record locations.", Toast.LENGTH_SHORT).show();
+                        }
+                    }
+            );
+
+
     // This field will hold an object that gets triggered by the periodic location updates.
     // The object will update the UI and record data to the Firestore.
     private LocationCallback mLocationCallback;
 
-    private static int REQUEST_CHECK_SETTINGS = 123;
+    private static final int REQUEST_CHECK_SETTINGS = 123;
 
     // This is a configuration object that tells the Google client how often and to what degree
     // of accuracy you want to receive location updates.
-    private LocationRequest mLocationRequest = new LocationRequest()
+    private LocationRequest mLocationRequest = LocationRequest.create()
             .setInterval(10000)
             .setFastestInterval(5000)
             .setPriority(LocationRequest.PRIORITY_HIGH_ACCURACY);
@@ -79,11 +101,14 @@ public class ContinuousLocActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_continuous);
 
-        mFusedLocationClient = LocationServices.getFusedLocationProviderClient(this);
-
         latText = findViewById(R.id.latitude);
         lonText = findViewById(R.id.longitude);
         accuracyText = findViewById(R.id.acc);
+        if (savedInstanceState != null) {
+            latText.setText(savedInstanceState.getCharSequence(LATITUDE_KEY));
+            lonText.setText(savedInstanceState.getCharSequence(LONGITUDE_KEY));
+            accuracyText.setText(savedInstanceState.getCharSequence(ACCURACY_KEY));
+        }
 
         // Setup the RecyclerView to display new and changed LocationRecords in the Firestore
         final RecyclerView recyclerView = findViewById(R.id.recycler_view);
@@ -144,11 +169,10 @@ public class ContinuousLocActivity extends AppCompatActivity {
             }
         };
 
-        if (savedInstanceState != null) {
-            latText.setText(savedInstanceState.getCharSequence(LATITUDE_KEY));
-            lonText.setText(savedInstanceState.getCharSequence(LONGITUDE_KEY));
-            accuracyText.setText(savedInstanceState.getCharSequence(ACCURACY_KEY));
-        }
+
+        mFusedLocationClient = LocationServices.getFusedLocationProviderClient(this);
+
+
 
     }
 
@@ -172,29 +196,6 @@ public class ContinuousLocActivity extends AppCompatActivity {
         mFusedLocationClient.removeLocationUpdates(mLocationCallback);
     }
 
-
-    /**
-     * This method is called automatically by the Android OS when ActivityCompat.requestPermissions() finishes the dialog.
-     * In here, we check if the user granted the permission or not, then do something based on that result.
-     *
-     * @param requestCode  a unique integer id affiliated with the permission request. This is used to help distinguish if an activity
-     *                     has multiple permission requests
-     * @param permissions  an array of the Android permissions that were requested
-     * @param grantResults Integer value indicating if the permission was granted or not
-     */
-    @Override
-    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
-        if (requestCode == MY_PERMISSIONS_REQUEST_ACCESS_FINE_LOCATION) {
-            // If request is cancelled, the result arrays are empty.
-            if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                Toast.makeText(this, "I can record the location now!", Toast.LENGTH_SHORT).show();
-            } else {
-                Toast.makeText(this, "This app won't work until you grant permission to access the location!", Toast.LENGTH_SHORT).show();
-            }
-        }
-    }
-
-
     /**
      * This method tries to start the continuous location updates, which is a complex process.
      * 1) Check to see if we can get location using the SettingsClient. Cases where you may not be able to get location
@@ -212,18 +213,19 @@ public class ContinuousLocActivity extends AppCompatActivity {
                 // All location settings are satisfied. The client can initialize
                 // location requests here.
                 // ...
-                if (ContextCompat.checkSelfPermission(ContinuousLocActivity.this, Manifest.permission.ACCESS_FINE_LOCATION)
-                        != PackageManager.PERMISSION_GRANTED) {
-                    if (ActivityCompat.shouldShowRequestPermissionRationale(ContinuousLocActivity.this,
-                            Manifest.permission.ACCESS_FINE_LOCATION)) {
-                        Toast.makeText(ContinuousLocActivity.this, "I need permission to access location in order to record locations.", Toast.LENGTH_SHORT).show();
-                    } else {
-                        ActivityCompat.requestPermissions(ContinuousLocActivity.this,
-                                new String[]{Manifest.permission.ACCESS_FINE_LOCATION},
-                                MY_PERMISSIONS_REQUEST_ACCESS_FINE_LOCATION);
-                    }
+
+                boolean hasFineLocationPermission = ContextCompat.checkSelfPermission(ContinuousLocActivity.this,
+                        Manifest.permission.ACCESS_FINE_LOCATION)
+                        == PackageManager.PERMISSION_GRANTED;
+
+                boolean hasCoarseLocationPermission = ContextCompat.checkSelfPermission(ContinuousLocActivity.this,
+                        Manifest.permission.ACCESS_COARSE_LOCATION)
+                        == PackageManager.PERMISSION_GRANTED;
+                if (!hasCoarseLocationPermission && !hasFineLocationPermission) {
+                    Toast.makeText(ContinuousLocActivity.this, "I need permission to access location in order to record locations.", Toast.LENGTH_SHORT).show();
+                    locationPermissionRequest.launch(new String[]{Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION});
                 } else {
-                    mFusedLocationClient.requestLocationUpdates(mLocationRequest,
+                                    mFusedLocationClient.requestLocationUpdates(mLocationRequest,
                             mLocationCallback,
                             null /* Looper */);
                 }
