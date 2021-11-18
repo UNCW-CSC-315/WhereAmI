@@ -173,7 +173,6 @@ public class ContinuousLocActivity extends AppCompatActivity {
         mFusedLocationClient = LocationServices.getFusedLocationProviderClient(this);
 
 
-
     }
 
     @Override
@@ -225,7 +224,7 @@ public class ContinuousLocActivity extends AppCompatActivity {
                     Toast.makeText(ContinuousLocActivity.this, "I need permission to access location in order to record locations.", Toast.LENGTH_SHORT).show();
                     locationPermissionRequest.launch(new String[]{Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION});
                 } else {
-                                    mFusedLocationClient.requestLocationUpdates(mLocationRequest,
+                    mFusedLocationClient.requestLocationUpdates(mLocationRequest,
                             mLocationCallback,
                             null /* Looper */);
                 }
@@ -254,7 +253,7 @@ public class ContinuousLocActivity extends AppCompatActivity {
      * This method is similar in nature to onRequestPermissionsResult(), except that this method
      * deal with the FusedLocationProvider not being able to handle the location polling
      * parameters you gave it.
-     *
+     * <p>
      * An example would be that the phone is in Airplane made. Android will prompt the user to
      * disable it, and they may or may not do so.
      *
