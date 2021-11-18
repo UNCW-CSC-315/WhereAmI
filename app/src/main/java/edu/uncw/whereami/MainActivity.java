@@ -21,4 +21,8 @@ public class MainActivity extends AppCompatActivity {
     public void clickContinuous(View view) {
         startActivity(new Intent(this, ContinuousLocActivity.class));
     }
+
+    public void clickMaps(View View) {
+        startActivity(new Intent(this, MapsActivity.class));
+    }
 }

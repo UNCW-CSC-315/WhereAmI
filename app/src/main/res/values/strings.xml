@@ -14,4 +14,5 @@
     <string name="acc_header">acc</string>
     <string name="history_label">History</string>
     <string name="record_button_text">Record Location</string>
+    <string name="title_activity_maps">MapsActivity</string>
 </resources>
